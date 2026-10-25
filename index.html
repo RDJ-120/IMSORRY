@@ -237,6 +237,90 @@
 
     .hidden { display: none; }
 
+    /* ---------- Tree intro page ---------- */
+    .tree-hint {
+      font-size: 1.6rem;
+      font-weight: 800;
+      text-align: center;
+      text-shadow: 0 0 18px rgba(255, 61, 110, 0.8);
+      animation: hintPulse 2.8s ease-in-out infinite;
+      transition: opacity 0.8s;
+    }
+
+    .tree-hint.gone { opacity: 0; animation: none; }
+
+    @keyframes hintPulse {
+      0%, 100% { opacity: 0.55; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-4px); }
+    }
+
+    .tree-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      outline: none;
+      width: min(86vw, 340px);
+    }
+
+    .tree-btn:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 6px;
+      border-radius: 12px;
+    }
+
+    .tree-btn svg {
+      width: 100%;
+      height: auto;
+      max-height: 58dvh;
+      overflow: visible;
+      display: block;
+    }
+
+    #branches path { stroke: #e8b4be; stroke-opacity: 0.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #tree-g { transform: scale(0.72); transform-origin: 120px 292px; }
+
+    .bloom {
+      transform: scale(0);
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: transform 1.3s cubic-bezier(0.25, 0.8, 0.3, 1), opacity 1.1s ease-out;
+    }
+
+    .bloom.on { transform: scale(1); opacity: 1; }
+
+    .tree-ground { fill: rgba(255, 95, 150, 0.4); }
+    .tree-btn:not(.growing) .tree-ground { animation: groundPulse 2.6s ease-in-out infinite; }
+
+    @keyframes groundPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ---------- Music toggle ---------- */
+    .music-toggle {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 12px);
+      left: 12px;
+      z-index: 5;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 95, 150, 0.7);
+      background: rgba(28, 2, 11, 0.7);
+      color: var(--pink-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(255, 61, 110, 0.4);
+    }
+
+    .music-toggle svg { width: 18px; height: 18px; }
+    .music-toggle .slash { display: none; }
+    .music-toggle.off .slash { display: block; }
+    .music-toggle.off { opacity: 0.65; }
+
     @media (prefers-reduced-motion: reduce) {
       .glossy::after { animation: none; }
       .page { transition-duration: 0.01s; }
@@ -248,8 +332,29 @@
   <div class="bg" aria-hidden="true"></div>
   <div class="rain" id="rain" aria-hidden="true"></div>
 
+  <button class="music-toggle" id="musicToggle" aria-label="الموسيقى">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v11.3A3.5 3.5 0 1 0 11 17.5V7h6V3z"/><path class="slash" d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+  </button>
+
+  <!-- One background track for the whole site -->
+  <audio id="bgm" src="audio1.mp3" loop preload="auto"></audio>
+
+  <!-- Page 0: tree -->
+  <section class="page active" id="pageTree">
+    <p class="tree-hint" id="treeHint">المس الشجرة</p>
+    <button class="tree-btn" id="treeBtn" aria-label="المس الشجرة">
+      <svg viewBox="0 0 240 320" aria-hidden="true">
+        <ellipse class="tree-ground" cx="120" cy="296" rx="100" ry="10"/>
+        <g id="tree-g">
+          <g id="branches"></g>
+          <g id="blooms"></g>
+        </g>
+      </svg>
+    </button>
+  </section>
+
   <!-- Page 1: apology -->
-  <section class="page active" id="pageOne">
+  <section class="page" id="pageOne">
     <h1 class="title">اسفة 🥺</h1>
 
     <textarea class="message" id="message" readonly aria-label="رسالة الاعتذار">عمري يوسف اني كثيرر اسفة ماعم اقصد اني استفزك هيك تعرف اني كثيرر وواجد احبك واعشقك واموتفيك وما يهون على زعلك🥰 ف لا تزعل يا كتكوت يا قمر يا زين الكواكب والنجوم والسماء كلها عمري كثير احبك انا اوكيه لا تزعل معرف اعبر بعرف بس اسفة انا 
@@ -394,10 +499,229 @@
       rain.appendChild(heart);
     }
 
-    if (!reduceMotion) {
+    // The hearts start falling once the tree page is done
+    let rainStarted = false;
+    function startRain() {
+      if (rainStarted || reduceMotion) return;
+      rainStarted = true;
       for (let i = 0; i < 6; i++) setTimeout(() => spawnHeart(false), i * 300);
       setInterval(() => spawnHeart(false), 650);
     }
+
+
+    /* ---------- Tree: tap to grow, then go to the apology page ---------- */
+    (function () {
+      const NS = "http://www.w3.org/2000/svg";
+      const btn = document.getElementById("treeBtn");
+      const treeG = document.getElementById("tree-g");
+      const branches = document.getElementById("branches");
+      const blooms = document.getElementById("blooms");
+      const hint = document.getElementById("treeHint");
+      const pageTree = document.getElementById("pageTree");
+
+      const GROUND = 292;
+      const MAXD = 5;
+      const HEART = "M0 5 C-9 -2 -5 -11 0 -6 C5 -11 9 -2 0 5Z";
+      const COLS = ["#ff3d6e", "#ff5fa6", "#e0264f", "#ff8fb8", "#c9143c"];
+      const items = [];
+      const tips = [];
+
+      function mk(tag, attrs) {
+        const el = document.createElementNS(NS, tag);
+        for (const key in attrs) el.setAttribute(key, attrs[key]);
+        return el;
+      }
+
+      // Each branch starts when its parent finishes; right-hand branches wait a bit longer,
+      // so the tree grows in order from left to right instead of all together.
+      function grow(x, y, ang, len, d, t0) {
+        const x2 = x + Math.sin(ang) * len;
+        const y2 = y - Math.cos(ang) * len;
+        const vx = x2 - x;
+        const vy = y2 - y;
+        const nx = -vy / len;
+        const ny = vx / len;
+        const bend = (Math.random() - 0.5) * len * 0.3;
+        const c1x = x + vx * 0.33 + nx * bend;
+        const c1y = y + vy * 0.33 + ny * bend;
+        const c2x = x + vx * 0.66 - nx * bend * 0.5;
+        const c2y = y + vy * 0.66 - ny * bend * 0.5;
+
+        const path = mk("path", {
+          d: `M${x.toFixed(1)} ${y.toFixed(1)} C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+          "stroke-width": Math.max(1, (MAXD - d + 1) * 1.35)
+        });
+        branches.appendChild(path);
+
+        const length = path.getTotalLength();
+        path.style.strokeDasharray = length;
+        path.style.strokeDashoffset = d === 0 ? 0 : length;
+        const dur = d === 0 ? 0 : 0.5 - d * 0.05;
+        const end = t0 + dur;
+        items.push({ path, d, t0, dur });
+
+        if (d < MAXD) {
+          for (let i = 0; i < 2; i++) {
+            const side = i === 0 ? -1 : 1;
+            const wait = i === 0 ? 0 : (MAXD - d) * 0.15;
+            grow(x2, y2, ang + side * (0.28 + Math.random() * 0.26) + (Math.random() - 0.5) * 0.08, len * (0.75 + Math.random() * 0.05), d + 1, end + wait);
+          }
+          if (d >= 2 && Math.random() < 0.7) {
+            tips.push({ x: x2, y: y2, t: end });
+            if (d >= 3) tips.push({ x: x2 + (Math.random() - 0.5) * 12, y: y2 + (Math.random() - 0.5) * 12, t: end });
+          }
+        } else {
+          for (let k = 0; k < 3; k++) {
+            tips.push({ x: x2 + (Math.random() - 0.5) * 16, y: y2 + (Math.random() - 0.5) * 16, t: end });
+          }
+        }
+      }
+
+      grow(120, GROUND, 0, 66, 0, 0.3);
+
+      // fewer hearts = no lag; they are also revealed one by one below
+      const MAX_HEARTS = 48;
+      const hearts = tips.sort(() => Math.random() - 0.5).slice(0, MAX_HEARTS).map((tip) => {
+        const scale = 0.6 + Math.random() * 0.45;
+        const group = mk("g", { transform: `translate(${tip.x.toFixed(1)} ${tip.y.toFixed(1)}) scale(${scale.toFixed(2)})` });
+        const bloom = mk("path", { d: HEART, class: "bloom" });
+        bloom.style.fill = COLS[Math.floor(Math.random() * COLS.length)];
+        bloom.style.fillOpacity = (0.82 + Math.random() * 0.14).toFixed(2);
+        group.appendChild(bloom);
+        blooms.appendChild(group);
+        return { group, bloom, x: tip.x, y: tip.y, scale, t: tip.t };
+      });
+
+      let started = false;
+
+      btn.addEventListener("click", () => {
+        if (started) return;
+        started = true;
+        btn.classList.add("growing");
+        hint.classList.add("gone");
+
+        treeG.style.transition = "transform 4.2s cubic-bezier(0.25, 0.6, 0.3, 1)";
+        treeG.style.transform = "scale(1)";
+
+        items.forEach((item) => {
+          if (item.d > 0) {
+            item.path.style.transition = `stroke-dashoffset ${item.dur.toFixed(2)}s ease-in-out ${item.t0.toFixed(2)}s`;
+            item.path.style.strokeDashoffset = 0;
+          }
+        });
+
+        // each heart opens right after its own branch finishes growing
+        hearts.forEach((o) => {
+          o.at = Math.round(o.t * 1000 + 150 + Math.random() * 150);
+          setTimeout(() => o.bloom.classList.add("on"), o.at);
+        });
+
+        // some hearts drift down to the ground
+        const fallers = hearts
+          .filter((o) => o.at <= 3800)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+        let endMs = 6500;
+
+        fallers.forEach((o, i) => {
+          const start = Math.max(3600 + i * 140, o.at + 1500) + Math.random() * 300;
+          const dur = 2600 + Math.random() * 1400;
+          endMs = Math.max(endMs, start + dur);
+
+          setTimeout(() => {
+            const sway = 10 + Math.random() * 12;
+            const dx = (Math.random() - 0.5) * 40;
+            const dy = (GROUND - 2 - Math.random() * 8) - o.y;
+            const rot = (Math.random() - 0.5) * 140;
+            const T = (x, y, r) => `translate(${x}px, ${y}px) scale(${o.scale}) rotate(${r}deg)`;
+
+            o.group.animate([
+              { transform: T(o.x, o.y, 0), opacity: 1 },
+              { offset: 0.3, transform: T(o.x + sway, o.y + dy * 0.3, rot * 0.3), opacity: 1 },
+              { offset: 0.65, transform: T(o.x - sway * 0.6 + dx * 0.5, o.y + dy * 0.7, rot * 0.7), opacity: 1 },
+              { transform: T(o.x + dx, o.y + dy, rot), opacity: 0.75 }
+            ], { duration: dur, easing: "cubic-bezier(0.37, 0, 0.63, 1)", fill: "forwards" });
+          }, start);
+        });
+
+        setTimeout(() => {
+          pageTree.classList.remove("active");
+          pageOne.classList.add("active");
+          startRain();
+        }, endMs - 300);
+      });
+    })();
+
+
+    /* ---------- Background music: one track for the whole site ---------- */
+    (function () {
+      const audio = document.getElementById("bgm");
+      const toggle = document.getElementById("musicToggle");
+      const TARGET = 0.5;
+      let muted = false;
+      let fadeTimer = null;
+
+      try { muted = localStorage.getItem("apology-music") === "off"; } catch (e) {}
+      toggle.classList.toggle("off", muted);
+      audio.volume = 0;
+
+      function fade(to, ms, done) {
+        clearInterval(fadeTimer);
+        const from = audio.volume;
+        const steps = 20;
+        let i = 0;
+
+        fadeTimer = setInterval(() => {
+          i++;
+          audio.volume = Math.max(0, Math.min(1, from + (to - from) * i / steps));
+          if (i >= steps) {
+            clearInterval(fadeTimer);
+            if (done) done();
+          }
+        }, ms / steps);
+      }
+
+      const wanted = () => !muted && !document.hidden;
+
+      function sync() {
+        if (wanted()) {
+          if (audio.paused) {
+            audio.play().then(() => fade(TARGET, 1400)).catch(() => {});
+          } else {
+            fade(TARGET, 1400);
+          }
+        } else {
+          fade(0, 600, () => { if (!wanted()) audio.pause(); });
+        }
+      }
+
+      // Browsers block sound until the first touch, so start on the first tap
+      const events = ["pointerdown", "touchend", "click", "keydown"];
+
+      function cleanup() {
+        events.forEach((ev) => document.removeEventListener(ev, firstGesture, true));
+      }
+
+      function firstGesture(e) {
+        if (e.target.closest && e.target.closest("#musicToggle")) return;
+        if (!wanted()) return;
+        audio.play().then(() => {
+          fade(TARGET, 1400);
+          cleanup();
+        }).catch(() => {});
+      }
+
+      events.forEach((ev) => document.addEventListener(ev, firstGesture, true));
+
+      toggle.addEventListener("click", () => {
+        muted = !muted;
+        toggle.classList.toggle("off", muted);
+        try { localStorage.setItem("apology-music", muted ? "off" : "on"); } catch (e) {}
+        sync();
+      });
+
+      document.addEventListener("visibilitychange", sync);
+    })();
   </script>
 </body>
 </html>
