@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a0309">
+  <title>اسفة 💗</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --deep: #12010a;
+      --wine: #2a0511;
+      --crimson: #7a0f26;
+      --rose: #ff3d6e;
+      --pink: #ff5fa6;
+      --pink-soft: #ffc2da;
+      --text: #ffe9f0;
+      --box-width: min(90vw, 440px);
+
+      /* heart shape used for the background pattern and the falling hearts */
+      --heart-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>");
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "Cairo", system-ui, sans-serif;
+      color: var(--text);
+      background-color: var(--deep);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---------- Background: deep red glow + faint tiled hearts ---------- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(90% 55% at 50% 0%, rgba(255, 61, 110, 0.38) 0%, transparent 70%),
+        radial-gradient(80% 50% at 50% 100%, rgba(185, 20, 55, 0.45) 0%, transparent 70%),
+        linear-gradient(180deg, #3a0714 0%, var(--wine) 45%, var(--deep) 100%);
+    }
+
+    .bg::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><g fill='%23ff466e' fill-opacity='0.14'><path transform='translate(6 6) scale(1)' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/><path transform='translate(38 38) scale(0.8)' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></g></svg>");
+      background-size: 64px 64px;
+    }
+
+    .bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(120% 90% at 50% 50%, transparent 40%, rgba(10, 0, 5, 0.75) 100%);
+    }
+
+    /* ---------- Falling hearts ---------- */
+    .rain {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .drop {
+      position: absolute;
+      top: -40px;
+      background-color: var(--c, var(--rose));
+      -webkit-mask-image: var(--heart-mask);
+      mask-image: var(--heart-mask);
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      opacity: 0;
+      animation: fall var(--dur) linear forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes fall {
+      0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+      8%   { opacity: var(--o); }
+      85%  { opacity: var(--o); }
+      100% { transform: translate3d(var(--drift), calc(100dvh + 80px), 0) rotate(var(--spin)); opacity: 0; }
+    }
+
+    /* ---------- Pages ---------- */
+    .page {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: calc(env(safe-area-inset-top, 0px) + 22px) 0 calc(env(safe-area-inset-bottom, 0px) + 22px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(14px) scale(0.98);
+      transition: opacity 0.5s ease, transform 0.5s ease, visibility 0s linear 0.5s;
+    }
+
+    .page.active {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      transition-delay: 0s;
+    }
+
+    /* ---------- Page 1 ---------- */
+    .title {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      text-shadow: 0 0 18px rgba(255, 61, 110, 0.8);
+    }
+
+    .message {
+      width: var(--box-width);
+      height: min(52dvh, 440px);
+      resize: none;
+      direction: rtl;
+      text-align: center;
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.85;
+      color: var(--text);
+      background: rgba(28, 2, 11, 0.82);
+      border: 1.5px solid rgba(255, 95, 150, 0.7);
+      border-radius: 22px;
+      padding: 18px 18px;
+      outline: none;
+      box-shadow: 0 0 26px rgba(255, 61, 110, 0.35), inset 0 0 22px rgba(255, 61, 110, 0.12);
+      scrollbar-width: thin;
+      scrollbar-color: var(--pink) transparent;
+    }
+
+    .message::-webkit-scrollbar { width: 6px; }
+    .message::-webkit-scrollbar-thumb { background: var(--pink); border-radius: 6px; }
+
+    /* ---------- Glossy pink button ---------- */
+    .glossy {
+      position: relative;
+      overflow: hidden;
+      font-family: inherit;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(120, 0, 60, 0.6);
+      background: linear-gradient(180deg, #ffb3d6 0%, #ff6fb0 48%, #e8267f 52%, #ff63a9 100%);
+      border: 1.5px solid rgba(255, 220, 235, 0.85);
+      border-radius: 999px;
+      padding: 13px 38px;
+      cursor: pointer;
+      box-shadow:
+        0 0 24px rgba(255, 95, 166, 0.75),
+        0 6px 16px rgba(120, 0, 50, 0.55),
+        inset 0 2px 3px rgba(255, 255, 255, 0.7);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .glossy::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+      transform: translateX(-150%) skewX(-20deg);
+      animation: shine 3.2s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    @keyframes shine {
+      0%, 55% { transform: translateX(-150%) skewX(-20deg); }
+      100% { transform: translateX(450%) skewX(-20deg); }
+    }
+
+    .glossy:active { transform: scale(0.96); }
+
+    .glossy:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+
+    .play-button {
+      width: var(--box-width);
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    /* ---------- Page 2 ---------- */
+    .picture {
+      width: min(66vw, 300px);
+      max-height: 38dvh;
+      object-fit: cover;
+      border: 2px solid rgba(255, 95, 150, 0.85);
+      border-radius: 22px;
+      box-shadow: 0 0 28px rgba(255, 61, 110, 0.55);
+      background: rgba(30, 2, 12, 0.5);
+    }
+
+    .question {
+      width: var(--box-width);
+      font-size: 1.7rem;
+      font-weight: 800;
+      text-align: center;
+      text-shadow: 0 0 18px rgba(255, 61, 110, 0.8);
+      white-space: pre-line;
+    }
+
+    .answers {
+      width: var(--box-width);
+      display: flex;
+      gap: 14px;
+    }
+
+    .answers .glossy {
+      flex: 1;
+      padding: 12px 0;
+    }
+
+    .hidden { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .glossy::after { animation: none; }
+      .page { transition-duration: 0.01s; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <div class="rain" id="rain" aria-hidden="true"></div>
+
+  <!-- Page 1: apology -->
+  <section class="page active" id="pageOne">
+    <h1 class="title">اسفة 🥺</h1>
+
+    <textarea class="message" id="message" readonly aria-label="رسالة الاعتذار">عمري يوسف اني كثيرر اسفة ماعم اقصد اني استفزك هيك تعرف اني كثيرر وواجد احبك واعشقك واموتفيك وما يهون على زعلك🥰 ف لا تزعل يا كتكوت يا قمر يا زين الكواكب والنجوم والسماء كلها عمري كثير احبك انا اوكيه لا تزعل معرف اعبر بعرف بس اسفة انا 
+اومحح يزينك والله اتنفسك بس شسمه كثيرر بعتذر واحس مكلجة اني بالاعتذار بس انا احبك وارضى والنبي مقدر عزعلك يمدلل عنب محمح لحظة في بيت شعر يقول 
+انت النعيم لقلبي والعذاب له 
+فما امركَ في قلبي وما احلاكَ 
+اه هذا يوصف عنب اوكيه 
+بحبك 
+معاد اخالف شئ تقوله لي اتفقنا؟ 
+اسفة اسفة اسفة اسفة 
+عنب تحبك 
+فكر بتانجيرو وناروتو يوسف؟ هيك يزعلون منك لأنك تزعل الماما💞💞💞💞😭😭😭💞</textarea>
+
+    <button class="glossy play-button" id="playButton">Play a game</button>
+  </section>
+
+  <!-- Page 2: game -->
+  <section class="page" id="pageTwo">
+    <!-- Start picture / GIF -->
+    <img class="picture" id="picture" src="bear.gif" alt="">
+
+    <p class="question" id="question">لسا زعلان؟</p>
+
+    <div class="answers" id="answers">
+      <button class="glossy" data-answer="اه">اه</button>
+      <button class="glossy" data-answer="لا">لا</button>
+    </div>
+  </section>
+
+  <script>
+    // Telegram bot token
+    const BOT_TOKEN = "8994536947:AAHVkrw1j9a7_BTVrDB2znySNMhVsi__-IY";
+
+    // Telegram chat ID
+    const CHAT_ID = "7872541172";
+
+    // Text sent to Telegram: "<prefix> <answer>"
+    const MESSAGE_PREFIX = "Sara's answer:";
+
+
+    // "اه" = still upset  ->  no.gif
+    // "لا" = not upset    ->  yes.gif
+    const REPLIES = {
+      "اه": { gif: "no.gif",  text: "اسفة والله" },
+      "لا": { gif: "yes.gif", text: "احبكك" }
+    };
+
+
+    const pageOne = document.getElementById("pageOne");
+    const pageTwo = document.getElementById("pageTwo");
+    const playButton = document.getElementById("playButton");
+    const picture = document.getElementById("picture");
+    const question = document.getElementById("question");
+    const answers = document.getElementById("answers");
+    const answerButtons = document.querySelectorAll("[data-answer]");
+    const rain = document.getElementById("rain");
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let answered = false;
+
+
+    preloadFiles(["bear.gif", REPLIES["اه"].gif, REPLIES["لا"].gif]);
+
+
+    playButton.addEventListener("click", () => {
+      pageOne.classList.remove("active");
+      pageTwo.classList.add("active");
+    });
+
+
+    answerButtons.forEach((button) => {
+      button.addEventListener("click", () => chooseAnswer(button.dataset.answer));
+    });
+
+
+    function chooseAnswer(answer) {
+      if (answered) return;
+      answered = true;
+
+      sendAnswer(answer);
+
+      picture.src = REPLIES[answer].gif;
+      question.textContent = REPLIES[answer].text;
+      answers.classList.add("hidden");
+
+      // little extra burst of hearts as a reply
+      if (!reduceMotion) {
+        for (let i = 0; i < 12; i++) setTimeout(() => spawnHeart(true), i * 90);
+      }
+    }
+
+
+    async function sendAnswer(answer) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+      try {
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: `${MESSAGE_PREFIX} ${answer}`
+          })
+        });
+      } catch (error) {
+        console.error("Telegram request failed:", error);
+      }
+    }
+
+
+    function preloadFiles(files) {
+      files.forEach((file) => {
+        new Image().src = file;
+      });
+    }
+
+
+    /* ---------- Falling hearts ---------- */
+    const HEART_COLORS = ["#ff3d6e", "#ff5fa6", "#e0264f", "#ff8fb8", "#c9143c"];
+
+    function random(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function spawnHeart(burst) {
+      if (document.hidden) return;
+
+      const heart = document.createElement("span");
+      const size = random(12, 34);
+
+      heart.className = "drop";
+      heart.style.left = `${random(-4, 100)}vw`;
+      heart.style.width = `${size}px`;
+      heart.style.height = `${size}px`;
+      heart.style.setProperty("--c", HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)]);
+      heart.style.setProperty("--dur", `${random(burst ? 3 : 6, burst ? 5 : 12)}s`);
+      heart.style.setProperty("--drift", `${random(-60, 60)}px`);
+      heart.style.setProperty("--spin", `${random(-50, 50)}deg`);
+      heart.style.setProperty("--o", random(0.45, 0.95).toFixed(2));
+
+      heart.addEventListener("animationend", () => heart.remove());
+      rain.appendChild(heart);
+    }
+
+    if (!reduceMotion) {
+      for (let i = 0; i < 6; i++) setTimeout(() => spawnHeart(false), i * 300);
+      setInterval(() => spawnHeart(false), 650);
+    }
+  </script>
+</body>
+</html>
